@@ -22,7 +22,13 @@ public class ExceptionHandlingMiddleware
         }
         catch (ValidationException ex)
         {
+            // خطأ من العميل: Warning من غير Stack Trace
+            _logger.LogWarning(
+                "Validation failed for {Method} {Path}. Errors: {ErrorCount}",
+                context.Request.Method, context.Request.Path, ex.Errors.Count());
+
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
+
             var errors = ex.Errors
                 .GroupBy(e => e.PropertyName)
                 .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
@@ -31,7 +37,12 @@ public class ExceptionHandlingMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unhandled exception");
+            // خطأ غير متوقع: نمرر ex عشان الـ Stack Trace يتسجل
+            _logger.LogError(
+                ex,
+                "Unhandled exception while processing {Method} {Path}",
+                context.Request.Method, context.Request.Path);
+
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
             await context.Response.WriteAsJsonAsync(new { title = "An unexpected error occurred" });
         }
